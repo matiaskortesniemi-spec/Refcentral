@@ -2,7 +2,10 @@
  * refcentral — ingest CLI
  *
  *   npx tsx scripts/ingest.ts --dry-run --from 2024-08-16 --to 2024-08-19
- *   npx tsx scripts/ingest.ts --from 2024-08-16 --to 2024-08-19 --competitions PL
+ *   npx tsx scripts/ingest.ts --from 2024-08-16 --to 2024-08-19
+ *
+ * Defaults to the Premier League. Other competitions still work — pass
+ * --competitions SA,BL1 — but nothing runs them on a schedule.
  *
  * --dry-run touches the providers but never the database. Start there.
  *
@@ -12,7 +15,7 @@
  * deterministic key.
  */
 
-import { ingest } from "../lib/ingest/run";
+import { ingest, DEFAULT_COMPETITIONS } from "../lib/ingest/run";
 
 function arg(name: string, fallback?: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -40,7 +43,7 @@ function isoDate(d: Date): string {
   console.log("refcentral ingest");
   console.log(`  window      ${from} .. ${to}`);
   console.log(`  season      ${season}`);
-  console.log(`  competitions ${comps ?? "all six"}`);
+  console.log(`  competitions ${comps ?? DEFAULT_COMPETITIONS.join(",") + " (default)"}`);
   console.log(`  mode        ${dryRun ? "DRY RUN — no database writes" : "writing to Supabase"}`);
 
   const started = Date.now();

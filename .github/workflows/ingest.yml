@@ -3,17 +3,21 @@ name: ingest
 # Runs on GitHub Actions rather than Vercel Cron for two reasons:
 #   - Vercel's Hobby plan allows one cron run per day, and refcentral needs
 #     several (matches finish at 14:00, 16:30 and 19:00 UTC on a Saturday)
-#   - Vercel functions cap at 30s on Hobby and 300s on Pro; a six-competition
-#     ingest on the free API tiers takes longer than that just in throttling
+#   - Vercel functions cap at 30s on Hobby and 300s on Pro. A single Premier
+#     League matchday measured 165 seconds on the free API tiers, almost all
+#     of it throttling — already close to the Pro ceiling, and over it the
+#     moment a second competition is added
 #
 # Free on public repos, and 2,000 minutes/month on private ones.
 
 on:
   schedule:
-    # Roughly 90 minutes after typical European kickoff windows, UTC.
-    - cron: "30 16 * * *"   # after early Saturday/Sunday fixtures
-    - cron: "00 19 * * *"   # after mid-afternoon
-    - cron: "30 22 * * *"   # after evening fixtures and midweek European nights
+    # Premier League kickoffs, UTC, plus ~90 minutes for full time and the
+    # rating delay. 12:30, 15:00 and 17:30 local are the common slots, and
+    # 20:00 covers Monday nights and midweek rounds.
+    - cron: "30 15 * * *"   # after early kickoffs
+    - cron: "30 18 * * *"   # after the 15:00 block
+    - cron: "30 22 * * *"   # after evening and Monday-night fixtures
   workflow_dispatch:
     inputs:
       from:
@@ -27,7 +31,7 @@ on:
         required: false
         default: "2024"
       competitions:
-        description: "Comma-separated codes, e.g. PL,SA"
+        description: "Comma-separated codes. Defaults to PL."
         required: false
       dry_run:
         description: "Skip database writes"

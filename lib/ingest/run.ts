@@ -27,6 +27,27 @@ import { runRules } from "../../src/rules";
 import { RefereeResolver } from "../../src/referees";
 import { FdMatchLite, Decision } from "../../src/types";
 
+/**
+ * Launching Premier League only.
+ *
+ * AF_LEAGUES still carries all six, and every other competition works by
+ * passing --competitions. Narrowing the default is deliberate rather than a
+ * limitation:
+ *
+ *   - the crowd thresholds in crowd.ts need a quorum of 400 weighted votes on
+ *     a tier-5 incident. Concentrating an audience on ten matches a week gets
+ *     there; spreading it across fifty does not.
+ *   - the league-adjusted career score and per-competition priors exist to
+ *     make a Serie A 3.4 comparable to a Bundesliga 3.4. With one competition
+ *     that machinery is dormant, so launch does not depend on it being right.
+ *   - the 100% cross-provider link rate measured in testing was a Premier
+ *     League number. The Champions League, with team names in several
+ *     languages, is where linking is most likely to degrade.
+ *
+ * Add competitions by extending this array once the above stop being true.
+ */
+export const DEFAULT_COMPETITIONS = ["PL"];
+
 const RATING_DELAY_MIN = 90;
 const RATING_WINDOW_HOURS = 72;
 /** Full time isn't in either feed; approximate from kickoff. */
@@ -36,7 +57,7 @@ export interface IngestOptions {
   from: string;              // YYYY-MM-DD
   to: string;                // YYYY-MM-DD
   season: number;
-  competitions?: string[];   // defaults to all six
+  competitions?: string[];   // defaults to DEFAULT_COMPETITIONS
   dryRun?: boolean;
   verbose?: boolean;
 }
@@ -79,7 +100,7 @@ export async function ingest(opts: IngestOptions): Promise<IngestStats> {
   const teams = db ? new TeamCache(db) : null;
   if (teams) await teams.preload();
 
-  const codes = opts.competitions ?? Object.keys(AF_LEAGUES);
+  const codes = opts.competitions ?? DEFAULT_COMPETITIONS;
 
   try {
     for (const code of codes) {

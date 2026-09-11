@@ -3,15 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Referee performance ratings for the top five leagues and the Champions League",
+  "description": "Referee performance ratings for the Premier League",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "smoke": "tsx scripts/smoketest.ts",
-    "ingest:dry": "tsx scripts/ingest.ts --dry-run",
-    "ingest": "tsx scripts/ingest.ts",
+    "smoke": "tsx --env-file=.env.local scripts/smoketest.ts",
+    "ingest:dry": "tsx --env-file=.env.local scripts/ingest.ts --dry-run",
+    "ingest": "tsx --env-file=.env.local scripts/ingest.ts",
     "demo:rules": "tsx src/demo.ts",
     "demo:scoring": "tsx src/scoring/demo.ts"
   },
@@ -22,8 +22,5 @@
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
-  },
-  "allowScripts": {
-    "esbuild@0.28.2": true
   }
 }
