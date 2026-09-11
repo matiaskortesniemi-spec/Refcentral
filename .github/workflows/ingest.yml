@@ -1,0 +1,73 @@
+name: ingest
+
+# Runs on GitHub Actions rather than Vercel Cron for two reasons:
+#   - Vercel's Hobby plan allows one cron run per day, and refcentral needs
+#     several (matches finish at 14:00, 16:30 and 19:00 UTC on a Saturday)
+#   - Vercel functions cap at 30s on Hobby and 300s on Pro; a six-competition
+#     ingest on the free API tiers takes longer than that just in throttling
+#
+# Free on public repos, and 2,000 minutes/month on private ones.
+
+on:
+  schedule:
+    # Roughly 90 minutes after typical European kickoff windows, UTC.
+    - cron: "30 16 * * *"   # after early Saturday/Sunday fixtures
+    - cron: "00 19 * * *"   # after mid-afternoon
+    - cron: "30 22 * * *"   # after evening fixtures and midweek European nights
+  workflow_dispatch:
+    inputs:
+      from:
+        description: "Start date (YYYY-MM-DD)"
+        required: false
+      to:
+        description: "End date (YYYY-MM-DD)"
+        required: false
+      season:
+        description: "Season start year"
+        required: false
+        default: "2024"
+      competitions:
+        description: "Comma-separated codes, e.g. PL,SA"
+        required: false
+      dry_run:
+        description: "Skip database writes"
+        type: boolean
+        default: false
+
+concurrency:
+  # Two ingests writing the same fixtures concurrently is safe (every write is
+  # an upsert) but wasteful of a rate-limited quota. Queue instead.
+  group: ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run ingest
+        env:
+          AF_KEY: ${{ secrets.AF_KEY }}
+          FD_KEY: ${{ secrets.FD_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Raise these after upgrading to API-Football Pro.
+          AF_RPM: ${{ vars.AF_RPM || '8' }}
+          FD_RPM: ${{ vars.FD_RPM || '8' }}
+        run: |
+          npx tsx scripts/ingest.ts \
+            ${{ inputs.from && format('--from {0}', inputs.from) || '' }} \
+            ${{ inputs.to && format('--to {0}', inputs.to) || '' }} \
+            --season ${{ inputs.season || vars.SEASON || '2024' }} \
+            ${{ inputs.competitions && format('--competitions {0}', inputs.competitions) || '' }} \
+            ${{ inputs.dry_run && '--dry-run' || '' }}
