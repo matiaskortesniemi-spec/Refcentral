@@ -20,7 +20,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  recentFixtures, decisionsForFixture, FixtureSummary, DecisionRow,
+  currentMatchweek, decisionsForFixture, FixtureSummary, DecisionRow, MatchweekView,
 } from "@/lib/queries/read";
 import { useSession, loadProfile, Profile } from "@/lib/supabase/auth";
 import { myRatings, allTeams, TeamOption, AllegianceRow } from "@/lib/queries/write";
@@ -40,7 +40,8 @@ const TIER_LABEL: Record<number, string> = {
 };
 
 export default function Home() {
-  const [fixtures, setFixtures] = useState<FixtureSummary[] | null>(null);
+  const [week, setWeek] = useState<MatchweekView | null>(null);
+  const fixtures = week?.fixtures ?? null;
   const [decisions, setDecisions] = useState<Record<number, DecisionRow[]>>({});
   const [index, setIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -56,8 +57,8 @@ export default function Home() {
   const deckRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    recentFixtures(20)
-      .then(setFixtures)
+    currentMatchweek()
+      .then(setWeek)
       .catch((e) => setError(String(e.message ?? e)));
   }, []);
 
@@ -209,7 +210,7 @@ export default function Home() {
               </div>
             )}
 
-            {!error && fixtures?.length === 0 && (
+            {!error && week && fixtures?.length === 0 && (
               <div className="state">
                 <h2>No matches yet</h2>
                 <p>The database is reachable but empty. Pull a matchday in:</p>
@@ -235,7 +236,15 @@ export default function Home() {
 
                 <div className="deck-head">
                   <div className="deck-title">
-                    Rating now in <b>the Premier League</b> · {index + 1} of {fixtures.length}
+                    {week?.round != null ? (
+                      <>
+                        <b>Matchweek {week.round}</b>
+                      </>
+                    ) : (
+                      <b>Premier League</b>
+                    )}{" "}
+                    · {index + 1} of {fixtures.length}
+                    {week && !week.open && <> · rating closed</>}
                   </div>
                   <div className="arrows">
                     <button
@@ -296,6 +305,29 @@ export default function Home() {
                   ))}
                 </div>
                 <p className="swipe-hint">Swipe or drag the card to move between matches</p>
+
+                {week && (
+                  <p className="window-note">
+                    {week.open && week.closesAt ? (
+                      <>
+                        Rating closes when the next matchweek kicks off —{" "}
+                        {new Date(week.closesAt).toLocaleString("en-GB", {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "long",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        .
+                      </>
+                    ) : (
+                      <>
+                        This matchweek is closed for rating. The next one opens once its
+                        matches finish.
+                      </>
+                    )}
+                  </p>
+                )}
 
                 {current && (
                   <div className="refcard">

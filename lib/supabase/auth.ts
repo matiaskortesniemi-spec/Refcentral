@@ -42,6 +42,30 @@ export async function sendMagicLink(email: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Google sign-in.
+ *
+ * Faster than a magic link for most people — no leaving the site, no waiting
+ * on an inbox — and it removes the single biggest drop-off in the flow. The
+ * magic link stays as the option for anyone who would rather not hand Google
+ * another account, which is a reasonable preference on a site about
+ * impartiality.
+ *
+ * Only email and profile are requested. Nothing else is needed and asking for
+ * more would trigger Google's verification review for no benefit.
+ */
+export async function signInWithGoogle(): Promise<void> {
+  const db = anonClient();
+  const { error } = await db.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.origin,
+      queryParams: { prompt: "select_account" },
+    },
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function signOut(): Promise<void> {
   await anonClient().auth.signOut();
 }

@@ -379,3 +379,32 @@ footer p { max-width: 62ch; margin: 0 0 8px; }
   background: var(--muted); opacity: .55; transform: translate(-50%,-50%);
   z-index: 1; pointer-events: none;
 }
+
+
+/* ---------- Google sign-in ----------
+ * Placed above the email field because it is the faster path for most
+ * people and the point of offering it is to remove a step, not to add a
+ * choice. The email option stays visible below rather than behind a
+ * disclosure — on a site about impartiality, "I would rather not link a
+ * Google account" is a reasonable position to accommodate plainly. */
+.btn-google {
+  width: 100%; background: #fff; color: var(--ink); border: 1px solid var(--ink);
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  font-weight: 500; margin-bottom: 12px;
+}
+.btn-google svg { flex: none; }
+.or-line {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px; color: var(--muted); margin-bottom: 12px;
+}
+.or-line::before, .or-line::after {
+  content: ""; flex: 1; height: 1px; background: var(--line);
+}
+@media (hover: hover) {
+  .btn-google:hover:not(:disabled) { background: var(--paper-2); color: var(--ink); }
+}
+
+.window-note {
+  font-size: 12px; color: var(--muted); text-align: center;
+  margin: 8px 0 0; line-height: 1.45;
+}

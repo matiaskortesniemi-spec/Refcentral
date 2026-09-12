@@ -30,13 +30,26 @@ function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * API-Football names a season by the year it starts in, so the 2026-27
+ * Premier League season is season=2026. European seasons begin in summer, so
+ * anything from July onward belongs to the current calendar year.
+ */
+function currentSeason(now = new Date()): number {
+  const y = now.getUTCFullYear();
+  return now.getUTCMonth() >= 6 ? y : y - 1;
+}
+
 (async () => {
   const today = new Date();
-  const threeDaysAgo = new Date(today.getTime() - 3 * 86_400_000);
+  // Ten days rather than three: long enough to cover a full matchweek
+  // including a Monday-night fixture, plus a re-run margin if a job failed.
+  // Every write is an upsert, so overlap costs a request and nothing else.
+  const threeDaysAgo = new Date(today.getTime() - 10 * 86_400_000);
 
   const from = arg("from", isoDate(threeDaysAgo))!;
   const to = arg("to", isoDate(today))!;
-  const season = Number(arg("season", process.env.SEASON ?? "2024"));
+  const season = Number(arg("season", process.env.SEASON ?? String(currentSeason())));
   const comps = arg("competitions");
   const dryRun = flag("dry-run");
 

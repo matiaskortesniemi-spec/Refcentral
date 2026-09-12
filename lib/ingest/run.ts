@@ -26,7 +26,7 @@ import { findOfficials } from "../../src/adapters/footballdata";
 import { runRules } from "../../src/rules";
 import { RefereeResolver } from "../../src/referees";
 import { FdMatchLite, Decision } from "../../src/types";
-import { roundBoundaries, ratingWindow, statusFor, RoundBoundary } from "./matchweek";
+import { roundBoundaries, ratingWindow, statusFor, roundNumber, RoundBoundary } from "./matchweek";
 
 /**
  * Launching Premier League only.
@@ -310,6 +310,7 @@ async function ingestOne(
         link_score: linkScore,
         competition_code: code,
         season: opts.season,
+        round: roundNumber(raw.league?.round ?? null),
         kickoff: kickoff.toISOString(),
         home_team_id: homeId,
         away_team_id: awayId,

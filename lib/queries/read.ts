@@ -15,6 +15,7 @@ import { anonClient } from "../supabase/client";
 
 export interface FixtureSummary {
   id: number;
+  round: number | null;
   kickoff: string;
   competition: string;
   home: string;
@@ -58,7 +59,7 @@ export async function recentFixtures(limit = 20): Promise<FixtureSummary[]> {
   const { data, error } = await db
     .from("fixture")
     .select(`
-      id, kickoff, competition_code, ft_home, ft_away, status,
+      id, kickoff, competition_code, ft_home, ft_away, status, round,
       rating_opens_at, rating_closes_at, referee_id,
       home:home_team_id ( name ),
       away:away_team_id ( name ),
@@ -73,6 +74,7 @@ export async function recentFixtures(limit = 20): Promise<FixtureSummary[]> {
 
   return (data ?? []).map((f: any) => ({
     id: f.id,
+    round: f.round ?? null,
     kickoff: f.kickoff,
     competition: f.competition_code,
     home: f.home?.name ?? "Unknown",
@@ -274,4 +276,97 @@ export async function refereeMatches(refereeId: string): Promise<RefereeMatch[]>
       decisionCount: Array.isArray(f.decision) ? f.decision.length : 0,
     };
   });
+}
+
+
+// ---------------------------------------------------------------------------
+// The current matchweek
+// ---------------------------------------------------------------------------
+
+export interface MatchweekView {
+  fixtures: FixtureSummary[];
+  /** Matchweek number, when the provider gave one we could parse. */
+  round: number | null;
+  /** True when these matches can still be rated. */
+  open: boolean;
+  /** When rating closes, i.e. when the next matchweek kicks off. */
+  closesAt: string | null;
+}
+
+/**
+ * What the site should be showing right now.
+ *
+ * The rating window already encodes this: a fixture stays open until the next
+ * matchweek kicks off, so "every fixture with an open window" IS the current
+ * matchweek, without needing to know today's date or the fixture calendar.
+ *
+ * When nothing is open — the hours between one window closing and the next
+ * round finishing — it falls back to the most recent completed matchweek, so
+ * the page is never empty. That set is shown read-only, which is honest: those
+ * matches genuinely are no longer rateable.
+ */
+export async function currentMatchweek(): Promise<MatchweekView> {
+  const db = anonClient();
+  const nowIso = new Date().toISOString();
+
+  const openRes = await db
+    .from("fixture")
+    .select(`
+      id, kickoff, competition_code, ft_home, ft_away, status, round,
+      rating_opens_at, rating_closes_at, referee_id,
+      home:home_team_id ( name ),
+      away:away_team_id ( name ),
+      referee:referee_id ( canonical_name ),
+      decision ( id ),
+      match_score ( score )
+    `)
+    .eq("status", "OPEN")
+    .lte("rating_opens_at", nowIso)
+    .gte("rating_closes_at", nowIso)
+    .order("kickoff", { ascending: true });
+
+  if (openRes.error) throw new Error(`currentMatchweek: ${openRes.error.message}`);
+
+  if (openRes.data?.length) {
+    const fixtures = openRes.data.map(mapFixture);
+    return {
+      fixtures,
+      round: fixtures.find((f) => f.round != null)?.round ?? null,
+      open: true,
+      closesAt: fixtures.reduce<string | null>(
+        (soonest, f) =>
+          f.ratingClosesAt && (!soonest || f.ratingClosesAt < soonest) ? f.ratingClosesAt : soonest,
+        null
+      ),
+    };
+  }
+
+  // Nothing open. Show the last completed matchweek rather than an empty page.
+  const recent = await recentFixtures(30);
+  if (!recent.length) return { fixtures: [], round: null, open: false, closesAt: null };
+
+  const lastRound = recent.find((f) => f.round != null)?.round ?? null;
+  const fixtures = lastRound == null ? recent.slice(0, 10) : recent.filter((f) => f.round === lastRound);
+
+  return { fixtures, round: lastRound, open: false, closesAt: null };
+}
+
+function mapFixture(f: any): FixtureSummary {
+  return {
+    id: f.id,
+    round: f.round ?? null,
+    kickoff: f.kickoff,
+    competition: f.competition_code,
+    home: f.home?.name ?? "Unknown",
+    away: f.away?.name ?? "Unknown",
+    ftHome: f.ft_home,
+    ftAway: f.ft_away,
+    refereeId: f.referee_id,
+    refereeName: f.referee?.canonical_name ?? null,
+    status: f.status,
+    ratingOpensAt: f.rating_opens_at,
+    ratingClosesAt: f.rating_closes_at,
+    decisionCount: Array.isArray(f.decision) ? f.decision.length : 0,
+    matchScore: f.match_score?.[0]?.score ?? f.match_score?.score ?? null,
+  };
 }
