@@ -156,7 +156,7 @@ export default function Home() {
             <span className="whistle" />
             refcentral
           </div>
-          <Link href="/referees" className="tagline">
+          <Link href="/referees" className="navbtn">
             Referees
           </Link>
         </div>

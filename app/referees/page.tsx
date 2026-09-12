@@ -38,7 +38,9 @@ export default function RefereesPage() {
             <span className="whistle" />
             refcentral
           </Link>
-          <span className="tagline">Premier League refereeing, one decision at a time</span>
+          <Link href="/" className="navbtn">
+            Matches
+          </Link>
         </div>
       </header>
 

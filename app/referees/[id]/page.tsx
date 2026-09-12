@@ -59,7 +59,7 @@ export default function RefereePage({ params }: { params: Promise<{ id: string }
             <span className="whistle" />
             refcentral
           </Link>
-          <Link href="/referees" className="tagline">
+          <Link href="/referees" className="navbtn">
             All referees
           </Link>
         </div>
