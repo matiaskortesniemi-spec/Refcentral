@@ -35,12 +35,57 @@ import { detectBrigade, UserMeta, bucketOf } from "./brigade";
 // Configuration
 // ---------------------------------------------------------------------------
 
-/** Notional prior observations for a single decision. */
-export const DECISION_PRIOR_M = 40;
-/** Notional prior matches for a referee's career. */
-export const REFEREE_PRIOR_M = 6;
+/**
+ * How much a prior is worth, expressed as a share of a typical sample.
+ *
+ * A fixed constant was wrong. m = 40 assumes roughly forty weighted votes per
+ * decision; on a site with twelve, the prior outvotes the actual raters three
+ * to one and the published number barely moves however strongly people feel.
+ * Early users would rate something 1.0, watch it publish at 3.2, and
+ * correctly conclude their input was ignored.
+ *
+ * So the prior is now worth a fraction of however many votes a decision
+ * typically attracts. With twelve votes the prior counts for three; with four
+ * hundred it counts for forty. The protection against a thin sample stays
+ * proportional to what "thin" actually means for this audience, and it
+ * recalibrates on its own as traffic grows rather than needing a constant
+ * edited every few months.
+ */
+export const PRIOR_SHARE = 0.25;
+/** Never below this, or a single vote defines the score. */
+export const MIN_PRIOR_M = 3;
+/** Never above this, however large the audience gets. */
+export const MAX_PRIOR_M = 40;
+/** Assumed sample size before any history exists. */
+export const COLD_START_N = 12;
+
+/** Legacy export kept so existing callers compile; prefer adaptiveM. */
+export const DECISION_PRIOR_M = MIN_PRIOR_M;
+/** Notional prior matches for a referee's career. Matches are far scarcer
+ *  than ratings, so this stays a small constant. */
+export const REFEREE_PRIOR_M = 4;
 /** Used only when no prior has enough history behind it. */
-export const FALLBACK_PRIOR = 3.2;
+/**
+ * The starting point before any real data exists.
+ *
+ * This is doing two jobs, and both matter:
+ *
+ *   1. It is what a decision with no ratings displays as.
+ *   2. It is what thin samples are pulled toward by shrinkage, so a decision
+ *      rated once at 0.5 publishes near here rather than at 0.5.
+ *
+ * Slightly above the midpoint rather than at it, because the base rate for a
+ * refereeing decision being correct is well above a coin flip. A neutral
+ * 2.50 would imply the typical call is as likely wrong as right, which is not
+ * what the data says about elite officiating.
+ *
+ * This is a stated assumption, not a measurement, and it should stop being a
+ * constant. Once LEAGUE_TYPE priors have enough history behind them they take
+ * over automatically and this is only used at cold start — at which point the
+ * honest move is to set it to the observed mean rather than leave a guess in
+ * the code.
+ */
+export const FALLBACK_PRIOR = 3.5;
 /** A prior needs this much history before it is trusted over the next level up. */
 export const MIN_PRIOR_N = 200;
 export const MIN_REFEREE_PRIOR_N = 20;
@@ -127,6 +172,21 @@ export function buildPriors(
     globalType.set(s.type, g);
   }
 
+  // Median rather than mean: one decision that went viral should not raise
+  // the assumed sample size for every ordinary call alongside it.
+  const nByKey = new Map<string, number[]>();
+  for (const s2 of scored) {
+    if (s2.effectiveN <= 0) continue;
+    for (const key of [`${s2.competition}|${s2.type}`, `*|${s2.type}`]) {
+      (nByKey.get(key) ?? nByKey.set(key, []).get(key)!).push(s2.effectiveN);
+    }
+  }
+  const typicalN = new Map<string, number>();
+  for (const [key, list] of nByKey) {
+    list.sort((a, b) => a - b);
+    typicalN.set(key, list[Math.floor(list.length / 2)]);
+  }
+
   const leagueReferee = new Map<string, { sum: number; n: number }>();
   let gSum = 0;
   let gN = 0;
@@ -140,6 +200,7 @@ export function buildPriors(
   }
 
   return {
+    typicalN,
     leagueType: new Map([...leagueType].map(([k, v]) => [k, { mean: v.sum / v.n, n: v.n }])),
     globalType: new Map([...globalType].map(([k, v]) => [k, { mean: v.sum / v.n, n: v.n }])),
     leagueReferee: new Map([...leagueReferee].map(([k, v]) => [k, { mean: v.sum / v.n, n: v.n }])),
@@ -147,18 +208,34 @@ export function buildPriors(
   };
 }
 
+/**
+ * How many notional prior observations to use for this decision.
+ *
+ * Scales with how many votes decisions of this kind actually get, clamped so
+ * that neither a two-person site nor a two-million-person one ends up with a
+ * prior that is either meaningless or immovable.
+ */
+export function adaptiveM(priors: Priors, competition: string, type: DecisionType): number {
+  const typical = priors.typicalN.get(`${competition}|${type}`)
+    ?? priors.typicalN.get(`*|${type}`)
+    ?? COLD_START_N;
+  return Math.round(Math.min(MAX_PRIOR_M, Math.max(MIN_PRIOR_M, typical * PRIOR_SHARE)));
+}
+
 export function priorFor(
   priors: Priors,
   competition: string,
   type: DecisionType
 ): { value: number; source: "LEAGUE_TYPE" | "GLOBAL_TYPE" | "FALLBACK"; m: number } {
+  const m = adaptiveM(priors, competition, type);
+
   const lt = priors.leagueType.get(`${competition}|${type}`);
-  if (lt && lt.n >= MIN_PRIOR_N) return { value: lt.mean, source: "LEAGUE_TYPE", m: DECISION_PRIOR_M };
+  if (lt && lt.n >= MIN_PRIOR_N) return { value: lt.mean, source: "LEAGUE_TYPE", m };
 
   const gt = priors.globalType.get(type);
-  if (gt && gt.n >= MIN_PRIOR_N) return { value: gt.mean, source: "GLOBAL_TYPE", m: DECISION_PRIOR_M };
+  if (gt && gt.n >= MIN_PRIOR_N) return { value: gt.mean, source: "GLOBAL_TYPE", m };
 
-  return { value: FALLBACK_PRIOR, source: "FALLBACK", m: DECISION_PRIOR_M };
+  return { value: FALLBACK_PRIOR, source: "FALLBACK", m };
 }
 
 // ---------------------------------------------------------------------------

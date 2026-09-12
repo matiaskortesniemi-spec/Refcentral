@@ -500,6 +500,12 @@ function FixtureSlide({
                   initial={ratings[d.id]}
                   disabled={!canRate}
                   communityScore={d.score}
+                  rateableFrom={d.rateableFrom}
+                  gateReason={
+                    d.type === "GAME_MANAGEMENT"
+                      ? "Opens at full time — game management is a judgement about the whole match."
+                      : "Opens in a few minutes, once VAR can no longer change this call."
+                  }
                 />
               ) : (
                 <div className="unscored">Sign in to add your own rating.</div>

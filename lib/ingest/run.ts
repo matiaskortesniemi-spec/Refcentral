@@ -346,6 +346,8 @@ async function ingestOne(
       tier_reasons: d.tierReasons,
       var_note: d.varNote ?? null,
       source: d.source,
+      // The match is over by the time this runs, so nothing needs gating.
+      rateable_from: null,
     }));
     const { error: decErr } = await db.from("decision").upsert(rows, { onConflict: "id" });
     if (decErr) throw new Error(`upserting decisions: ${decErr.message}`);

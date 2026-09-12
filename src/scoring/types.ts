@@ -119,6 +119,11 @@ export interface RefereeAggregate {
 }
 
 export interface Priors {
+  /**
+   * Typical effective-N for a decision, by competition+type. Used to scale
+   * how much weight the prior carries — see adaptiveM in job.ts.
+   */
+  typicalN: Map<string, number>;
   /** Mean rating by competition + decision type. */
   leagueType: Map<string, { mean: number; n: number }>;
   /** Mean rating by decision type across all competitions. */

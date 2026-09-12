@@ -18,7 +18,8 @@
     "build": "next build",
     "start": "next start",
     "score": "tsx --env-file=.env.local scripts/score.ts",
-    "score:dry": "tsx --env-file=.env.local scripts/score.ts --dry-run"
+    "score:dry": "tsx --env-file=.env.local scripts/score.ts --dry-run",
+    "live": "tsx --env-file=.env.local scripts/live.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

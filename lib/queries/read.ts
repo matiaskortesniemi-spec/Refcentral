@@ -50,6 +50,8 @@ export interface DecisionRow {
   divergence: number | null;
   effectiveN: number;
   held: boolean;
+  /** Null means rateable now. Used to hold game management until full time. */
+  rateableFrom: string | null;
 }
 
 /** Most recent fixtures, newest first. */
@@ -99,7 +101,7 @@ export async function decisionsForFixture(fixtureId: number): Promise<DecisionRo
     .from("decision")
     .select(`
       id, type, tier, minute, extra_time, favours, against,
-      label, tier_reasons, var_note, source,
+      label, tier_reasons, var_note, source, rateable_from,
       scored_decision ( score, neutral_mean, partisan_mean, divergence, effective_n, held )
     `)
     .eq("fixture_id", fixtureId)
@@ -127,6 +129,7 @@ export async function decisionsForFixture(fixtureId: number): Promise<DecisionRo
       divergence: s?.divergence ?? null,
       effectiveN: s?.effective_n ?? 0,
       held: s?.held ?? false,
+      rateableFrom: d.rateable_from ?? null,
     };
   });
 }

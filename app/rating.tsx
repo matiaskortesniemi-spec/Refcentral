@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { sendMagicLink, signInWithGoogle, signOut, Profile, setFavouriteTeam } from "@/lib/supabase/auth";
+import { sendMagicLink, signOut, Profile, setFavouriteTeam } from "@/lib/supabase/auth";
 import {
   declareAllegiance, myAllegiance, submitRating, AllegianceRow, Side, TeamOption,
 } from "@/lib/queries/write";
@@ -45,26 +45,6 @@ export function SignIn() {
         One account, one rating per decision. That constraint is what makes the weighting mean
         anything — without it, the loudest fanbase writes every score.
       </p>
-      <button
-        className="btn btn-google"
-        disabled={busy}
-        onClick={async () => {
-          setError(null);
-          try {
-            await signInWithGoogle();
-          } catch (e: any) {
-            setError(e.message ?? String(e));
-          }
-        }}
-      >
-        <GoogleMark />
-        Continue with Google
-      </button>
-
-      <div className="or-line">
-        <span>or use email</span>
-      </div>
-
       <div className="signin-row">
         <input
           type="email"
@@ -95,17 +75,6 @@ export function SignIn() {
       <p className="fineprint">No password. We email a one-time link.</p>
       {error && <p className="err">{error}</p>}
     </div>
-  );
-}
-
-function GoogleMark() {
-  return (
-    <svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true">
-      <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
-      <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
-      <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z" />
-      <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
-    </svg>
   );
 }
 
@@ -271,6 +240,8 @@ export function RatingSlider({
   initial,
   disabled,
   communityScore,
+  rateableFrom,
+  gateReason,
 }: {
   userId: string;
   fixtureId: number;
@@ -279,6 +250,10 @@ export function RatingSlider({
   disabled: boolean;
   /** Shown as a grey marker on the track, so you can see the anchor. */
   communityScore: number | null;
+  /** ISO timestamp before which this decision cannot be rated. */
+  rateableFrom: string | null;
+  /** Copy explaining why, when the gate is closed. */
+  gateReason?: string;
 }) {
   const [value, setValue] = useState<number | undefined>(initial);
   const [saved, setSaved] = useState(initial !== undefined);
@@ -299,6 +274,16 @@ export function RatingSlider({
       setSaved(false);
     }
   };
+
+  const gated = rateableFrom != null && new Date(rateableFrom).getTime() > Date.now();
+
+  if (gated) {
+    return (
+      <div className="gate-note">
+        {gateReason ?? "Opens for rating shortly."}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -324,6 +309,14 @@ export function RatingSlider({
         <span className={`myval ${value === undefined ? "unset" : ""}`}>
           {value === undefined ? "–" : value.toFixed(1)}
         </span>
+      </div>
+
+      {/* The scale has no meaning without its ends named. A bare 0–5 slider
+          leaves people guessing whether high means "good decision" or
+          "severe offence", and the two readings are opposites. */}
+      <div className="scale-ends">
+        <span>0 · got it wrong</span>
+        <span>got it right · 5</span>
       </div>
       {disabled && <div className="unscored">Declare who you were watching as to rate.</div>}
       {!disabled && saved && value !== undefined && (

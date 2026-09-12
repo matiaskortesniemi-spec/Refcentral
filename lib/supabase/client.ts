@@ -30,7 +30,20 @@ export function anonClient(): SupabaseClient {
   }
 
   cached = createClient(url, key, {
-    auth: { persistSession: true, autoRefreshToken: true },
+    auth: {
+      // The session lives in localStorage and is refreshed in the background,
+      // so signing in once should last weeks rather than a browsing session.
+      persistSession: true,
+      autoRefreshToken: true,
+      // Reads the token out of the URL fragment after a magic link lands and
+      // then cleans it up. Without this the link signs you in and the session
+      // is gone on the next navigation.
+      detectSessionInUrl: true,
+      // A fixed key, so a session survives anything that might otherwise
+      // namespace storage differently between builds.
+      storageKey: "refcentral-auth",
+      flowType: "pkce",
+    },
   });
   return cached;
 }
