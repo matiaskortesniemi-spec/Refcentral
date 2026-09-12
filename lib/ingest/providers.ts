@@ -106,6 +106,14 @@ export class ApiFootball {
   events(fixtureId: number) {
     return this.get<any[]>(`/fixtures/events?fixture=${fixtureId}`);
   }
+
+  /**
+   * Every fixture in a season, any status. One call, used to work out when
+   * each matchweek begins — which is what closes a rating window.
+   */
+  seasonFixtures(league: number, season: number) {
+    return this.get<any[]>(`/fixtures?league=${league}&season=${season}`);
+  }
 }
 
 // ---------------------------------------------------------------------------

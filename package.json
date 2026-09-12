@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Referee performance ratings for the Premier League",
+  "description": "Referee performance ratings for the top five leagues and the Champions League",
   "engines": {
     "node": ">=20"
   },
@@ -13,13 +13,23 @@
     "ingest:dry": "tsx --env-file=.env.local scripts/ingest.ts --dry-run",
     "ingest": "tsx --env-file=.env.local scripts/ingest.ts",
     "demo:rules": "tsx src/demo.ts",
-    "demo:scoring": "tsx src/scoring/demo.ts"
+    "demo:scoring": "tsx src/scoring/demo.ts",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "score": "tsx --env-file=.env.local scripts/score.ts",
+    "score:dry": "tsx --env-file=.env.local scripts/score.ts --dry-run"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.116.0"
+    "@supabase/supabase-js": "^2.116.0",
+    "next": "^15.5.25",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
   }

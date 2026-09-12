@@ -26,6 +26,7 @@ import { findOfficials } from "../../src/adapters/footballdata";
 import { runRules } from "../../src/rules";
 import { RefereeResolver } from "../../src/referees";
 import { FdMatchLite, Decision } from "../../src/types";
+import { roundBoundaries, ratingWindow, statusFor, RoundBoundary } from "./matchweek";
 
 /**
  * Launching Premier League only.
@@ -122,6 +123,22 @@ export async function ingest(opts: IngestOptions): Promise<IngestStats> {
       stats.fixturesSeen += fixtures.length;
       if (fixtures.length === 0) continue;
 
+      // One extra call gives every round's first kickoff, which is what
+      // decides when each rating window closes.
+      let boundaries = new Map<number, RoundBoundary>();
+      try {
+        const seasonAll = await af.seasonFixtures(league.afId, opts.season);
+        boundaries = roundBoundaries(
+          (seasonAll ?? []).map((x: any) => ({
+            round: x.league?.round ?? null,
+            kickoff: x.fixture?.date,
+          }))
+        );
+        log(opts, `[${code}] ${boundaries.size} rounds mapped for window boundaries`);
+      } catch (e) {
+        stats.warnings.push(`[${code}] season fixtures for windows: ${e}`);
+      }
+
       // One football-data call per competition, reused for every fixture.
       let fdCandidates: FdMatchLite[] = [];
       if (fd) {
@@ -136,8 +153,10 @@ export async function ingest(opts: IngestOptions): Promise<IngestStats> {
 
       for (const f of fixtures) {
         try {
-          await ingestOne(f, code, fdCandidates, {
-            af, fd, db, teams, resolver, opts, stats,
+          await ingestOne(f, code, fdCandidates, boundaries, {
+            af, fd, db, teams, resolver,
+            store: store as { flushOne?(id: string): Promise<void> },
+            opts, stats,
           });
         } catch (e) {
           stats.warnings.push(`fixture ${f?.fixture?.id}: ${e}`);
@@ -150,7 +169,12 @@ export async function ingest(opts: IngestOptions): Promise<IngestStats> {
       log(opts, `\nflushed ${flushed.referees} referees, ${flushed.aliases} aliases`);
     }
 
-    if (db) await finishRun(db, runId, true, stats);
+    // A run that collected per-fixture errors is not a success. The first
+    // live run reported ok=true while writing zero fixtures, which is exactly
+    // the kind of green light nobody should trust.
+    const failures = stats.warnings.filter((w) => w.includes("Error:")).length;
+    if (db) await finishRun(db, runId, failures === 0, stats,
+      failures ? `${failures} fixtures failed to write` : undefined);
     return stats;
   } catch (e) {
     if (db) await finishRun(db, runId, false, stats, String(e));
@@ -166,12 +190,20 @@ interface Ctx {
   db: SupabaseClient | null;
   teams: TeamCache | null;
   resolver: RefereeResolver;
+  /** DbRefereeStore in a live run; the in-memory store has no flushOne. */
+  store: { flushOne?(id: string): Promise<void> };
   opts: IngestOptions;
   stats: IngestStats;
 }
 
-async function ingestOne(raw: any, code: string, fdCandidates: FdMatchLite[], ctx: Ctx) {
-  const { af, fd, db, teams, resolver, opts, stats } = ctx;
+async function ingestOne(
+  raw: any,
+  code: string,
+  fdCandidates: FdMatchLite[],
+  boundaries: Map<number, RoundBoundary>,
+  ctx: Ctx
+) {
+  const { af, fd, db, teams, resolver, store, opts, stats } = ctx;
   const afFixtureId = raw.fixture.id;
 
   const events = await af.events(afFixtureId);
@@ -224,9 +256,10 @@ async function ingestOne(raw: any, code: string, fdCandidates: FdMatchLite[], ct
 
   // --- write ----------------------------------------------------------------
   const kickoff = new Date(match.kickoff);
-  const fullTime = new Date(kickoff.getTime() + APPROX_MATCH_MINUTES * 60_000);
-  const opensAt = new Date(fullTime.getTime() + RATING_DELAY_MIN * 60_000);
-  const closesAt = new Date(opensAt.getTime() + RATING_WINDOW_HOURS * 3_600_000);
+  const window = ratingWindow(kickoff, raw.league?.round ?? null, boundaries);
+  const opensAt = window.opensAt;
+  const closesAt = window.closesAt;
+  const windowStatus = statusFor(window);
 
   const blocked = resolution.blocked || !resolution.referee;
   const result = runRules(match);
@@ -235,7 +268,8 @@ async function ingestOne(raw: any, code: string, fdCandidates: FdMatchLite[], ct
   log(opts,
     `  ${raw.teams.home.name} v ${raw.teams.away.name}  ` +
     `ref=${resolution.referee?.canonicalName ?? "?"} (${resolution.confidence})  ` +
-    `link=${linkScore?.toFixed(3) ?? "none"}  decisions=${result.decisions.length}` +
+    `link=${linkScore?.toFixed(3) ?? "none"}  decisions=${result.decisions.length}  ` +
+    `window=${windowStatus} (${window.basis})` +
     (blocked ? "  BLOCKED" : "")
   );
 
@@ -257,6 +291,13 @@ async function ingestOne(raw: any, code: string, fdCandidates: FdMatchLite[], ct
     stats.fixturesBlocked++;
   }
 
+  // The fixture has a foreign key to referee(id), so the referee must be
+  // persisted first. Flushing the whole store at the end of the run is too
+  // late — that is what made the first live run write nothing.
+  if (resolution.referee && store.flushOne) {
+    await store.flushOne(resolution.referee.id);
+  }
+
   const homeId = await teams.ensure(raw.teams.home.id, raw.teams.home.name);
   const awayId = await teams.ensure(raw.teams.away.id, raw.teams.away.name);
 
@@ -275,7 +316,7 @@ async function ingestOne(raw: any, code: string, fdCandidates: FdMatchLite[], ct
         ft_home: match.fullTime.home,
         ft_away: match.fullTime.away,
         referee_id: resolution.referee?.id ?? null,
-        status: blocked ? "BLOCKED" : "OPEN",
+        status: blocked ? "BLOCKED" : windowStatus,
         rating_opens_at: opensAt.toISOString(),
         rating_closes_at: closesAt.toISOString(),
       },

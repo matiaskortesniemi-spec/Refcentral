@@ -99,7 +99,45 @@ export class DbRefereeStore implements RefereeStore {
     this.dirty.add(r.id);
   }
 
-  /** Writes changed referees and any aliases they've picked up. */
+  /**
+   * Writes ONE referee immediately.
+   *
+   * Fixtures carry a foreign key to referee(id), so the referee row has to
+   * exist before its fixture is inserted. Flushing only at the end of the run
+   * meant every fixture in the first run failed on
+   * fixture_referee_id_fkey — the whole matchday wrote nothing.
+   */
+  async flushOne(id: string): Promise<void> {
+    const r = this.records.get(id);
+    if (!r) return;
+
+    const { error: refErr } = await this.db.from("referee").upsert(
+      {
+        id: r.id,
+        fd_person_id: r.fdPersonId,
+        canonical_name: r.canonicalName,
+        country: r.country,
+      },
+      { onConflict: "id" }
+    );
+    if (refErr) throw new Error(`writing referee ${r.canonicalName}: ${refErr.message}`);
+
+    const aliasRows = r.aliases.map((a) => ({
+      alias: a.trim().toLowerCase(),
+      referee_id: r.id,
+      source: r.fdPersonId != null ? "FOOTBALL_DATA" : "API_FOOTBALL",
+    }));
+    if (aliasRows.length) {
+      const { error: aliasErr } = await this.db
+        .from("referee_alias")
+        .upsert(aliasRows, { onConflict: "alias" });
+      if (aliasErr) throw new Error(`writing aliases: ${aliasErr.message}`);
+    }
+
+    this.dirty.delete(id);
+  }
+
+  /** Writes any referees still pending at the end of a run. */
   async flush(): Promise<{ referees: number; aliases: number }> {
     if (this.dirty.size === 0) return { referees: 0, aliases: 0 };
 
