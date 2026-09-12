@@ -16,6 +16,7 @@ import { sendMagicLink, signOut, Profile, setFavouriteTeam } from "@/lib/supabas
 import {
   declareAllegiance, myAllegiance, submitRating, AllegianceRow, Side, TeamOption,
 } from "@/lib/queries/write";
+import { AverageMarker } from "./display";
 
 // ---------------------------------------------------------------------------
 
@@ -238,12 +239,15 @@ export function RatingSlider({
   decisionId,
   initial,
   disabled,
+  communityScore,
 }: {
   userId: string;
   fixtureId: number;
   decisionId: string;
   initial: number | undefined;
   disabled: boolean;
+  /** Shown as a grey marker on the track, so you can see the anchor. */
+  communityScore: number | null;
 }) {
   const [value, setValue] = useState<number | undefined>(initial);
   const [saved, setSaved] = useState(initial !== undefined);
@@ -268,21 +272,24 @@ export function RatingSlider({
   return (
     <>
       <div className="slider-row">
-        <input
-          type="range"
-          min={0}
-          max={5}
-          step={0.1}
-          value={value ?? 2.5}
-          disabled={disabled}
-          aria-label="Rate this decision from 0 to 5"
-          onChange={(e) => {
-            setValue(Number(e.target.value));
-            setSaved(false);
-          }}
-          onPointerUp={(e) => commit(Number((e.target as HTMLInputElement).value))}
-          onKeyUp={(e) => commit(Number((e.target as HTMLInputElement).value))}
-        />
+        <span className="slider-stack">
+          <AverageMarker score={communityScore} />
+          <input
+            type="range"
+            min={0}
+            max={5}
+            step={0.1}
+            value={value ?? 2.5}
+            disabled={disabled}
+            aria-label="Rate this decision from 0 to 5"
+            onChange={(e) => {
+              setValue(Number(e.target.value));
+              setSaved(false);
+            }}
+            onPointerUp={(e) => commit(Number((e.target as HTMLInputElement).value))}
+            onKeyUp={(e) => commit(Number((e.target as HTMLInputElement).value))}
+          />
+        </span>
         <span className={`myval ${value === undefined ? "unset" : ""}`}>
           {value === undefined ? "–" : value.toFixed(1)}
         </span>

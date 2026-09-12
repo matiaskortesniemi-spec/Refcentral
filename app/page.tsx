@@ -27,6 +27,9 @@ import { myRatings, allTeams, TeamOption, AllegianceRow } from "@/lib/queries/wr
 import {
   SignIn, AccountBar, FavouritePicker, AllegiancePicker, RatingSlider,
 } from "./rating";
+import {
+  MatchState, matchPhase, GameManagementMark, CommunityAverage,
+} from "./display";
 import Link from "next/link";
 
 const TIER_LABEL: Record<number, string> = {
@@ -401,6 +404,9 @@ function FixtureSlide({
           Referee: {fixture.refereeName ?? "unconfirmed"} · {fixture.decisionCount} decisions
           logged
         </div>
+        <div style={{ marginTop: 5 }}>
+          <MatchState phase={matchPhase(fixture.kickoff, fixture.ftHome, fixture.ftAway)} />
+        </div>
       </div>
 
       {userId && (
@@ -420,7 +426,11 @@ function FixtureSlide({
             <div className="dec-head">
               <span className="minute">{d.minute ? `${d.minute}'` : "—"}</span>
               <span className="dec-what">{d.label}</span>
-              <span className={`tier ${tierClass(d.tier)}`}>{TIER_LABEL[d.tier] ?? d.tier}</span>
+              {d.type === "GAME_MANAGEMENT" ? (
+                <span className="tier">Blended in</span>
+              ) : (
+                <span className={`tier ${tierClass(d.tier)}`}>{TIER_LABEL[d.tier] ?? d.tier}</span>
+              )}
             </div>
 
             <div className="dec-body">
@@ -436,6 +446,20 @@ function FixtureSlide({
 
               {d.varNote && <div className="varnote">VAR: {d.varNote}</div>}
 
+              {d.type === "GAME_MANAGEMENT" && (
+                <div style={{ marginTop: 5, fontSize: 12 }}>
+                  <GameManagementMark />
+                </div>
+              )}
+
+              {/* Shown to everyone. The average is what people came for. */}
+              <CommunityAverage
+                score={d.score}
+                neutral={d.neutralMean}
+                partisan={d.partisanMean}
+                effectiveN={d.effectiveN}
+              />
+
               {userId ? (
                 <RatingSlider
                   userId={userId}
@@ -443,9 +467,10 @@ function FixtureSlide({
                   decisionId={d.id}
                   initial={ratings[d.id]}
                   disabled={!canRate}
+                  communityScore={d.score}
                 />
               ) : (
-                <div className="unscored">Sign in to rate this decision.</div>
+                <div className="unscored">Sign in to add your own rating.</div>
               )}
             </div>
           </div>

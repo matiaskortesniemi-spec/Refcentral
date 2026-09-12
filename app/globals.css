@@ -56,7 +56,13 @@ img, svg, video, table, input, select { max-width: 100%; }
 
 /* ---------- header ---------- */
 header { border-bottom: 1px solid var(--line); }
-.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; min-height: var(--tap); }
+/* Logo left, action right, both inset from the edge and vertically centred.
+   Centring is on `align-items`, not on line-height guesses, so the 44px
+   button and the wordmark share a baseline row whatever their heights. */
+.bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 10px 0; min-height: 60px;
+}
 .mark { display: flex; align-items: baseline; gap: 8px; font-weight: 800; font-size: 19px; letter-spacing: -.03em; text-decoration: none; }
 .whistle { width: 13px; height: 13px; border-radius: 50%; background: var(--ink); position: relative; top: 1px; flex: none; box-shadow: inset 0 0 0 3px var(--paper), 0 0 0 1px var(--ink); }
 .tagline { font-size: 13px; color: var(--muted); text-decoration: none; display: flex; align-items: center; min-height: var(--tap); }
@@ -114,7 +120,14 @@ h1 { font-size: clamp(28px, 8vw, 38px); line-height: 1.02; letter-spacing: -.03e
 .dec-head { display: grid; grid-template-columns: 32px 1fr; gap: 8px; align-items: start; }
 .minute { font-family: var(--cond); font-weight: 700; color: var(--muted); font-size: 14px; }
 .dec-what { font-size: 14.5px; font-weight: 500; letter-spacing: -.01em; }
-.tier { font-size: 11px; padding: 2px 6px; border-radius: 2px; white-space: nowrap; border: 1px solid var(--line); color: var(--muted); background: var(--paper); display: inline-block; margin-top: 5px; }
+/* The badge wraps onto a second grid row on a phone. Without an explicit
+   column it lands in the 32px minute track and gets clipped mid-word. */
+.tier {
+  grid-column: 2; justify-self: start;
+  font-size: 11px; padding: 3px 7px; border-radius: 2px; white-space: nowrap;
+  border: 1px solid var(--line); color: var(--muted); background: var(--paper);
+  display: inline-block; margin-top: 6px; max-width: 100%;
+}
 .tier.t5 { border-color: var(--red); color: var(--red); background: #fdf1f0; }
 .tier.t3 { border-color: #c9a227; color: #8a6d09; background: #fdf8e6; }
 
@@ -306,4 +319,63 @@ footer p { max-width: 62ch; margin: 0 0 8px; }
 
 @media (prefers-reduced-motion: reduce) {
   .track.animate { transition: none; }
+  /* A looping pulse is exactly what this setting exists to stop. The live
+     state still reads without it — the mark stays red and labelled. */
+  .state-dot.live .ball::after { animation: none; opacity: .5; transform: scale(1); }
+}
+
+
+/* ---------- match state ----------
+ * A rating window is only meaningful if you can tell at a glance whether the
+ * match is still being played. Two states, two different signals: motion for
+ * live, a static mark for finished. Motion is reserved for the one thing on
+ * the page that is actually changing. */
+.state-dot {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: var(--muted);
+}
+.state-dot .ball {
+  width: 9px; height: 9px; border-radius: 50%; flex: none;
+  background: var(--red); position: relative;
+}
+.state-dot.live .ball::after {
+  content: ""; position: absolute; inset: -4px; border-radius: 50%;
+  border: 1px solid var(--red); animation: pulse 1.6s ease-out infinite;
+}
+@keyframes pulse {
+  0%   { transform: scale(.6); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+.state-dot.live { color: var(--red); font-weight: 600; }
+.state-dot .whistle-icon { width: 13px; height: 13px; flex: none; opacity: .75; }
+
+/* The game-management row is blended into every match score rather than
+   being one call among many, so it is marked rather than ranked. */
+.gm-mark { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
+.gm-mark svg { width: 13px; height: 13px; flex: none; }
+
+/* ---------- community average on the track ----------
+ * Shown to everyone, signed in or not. The average is the product; asking
+ * people to create an account before they can see what anyone concluded
+ * would be withholding the thing they came for. */
+.rate-wrap { position: relative; margin-top: 8px; }
+.avg-track { position: relative; height: 3px; background: var(--line); border-radius: 2px; margin: 0 0 4px; }
+.avg-dot {
+  position: absolute; top: 50%; width: 13px; height: 13px; border-radius: 50%;
+  background: var(--muted); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--muted);
+  transform: translate(-50%, -50%);
+}
+.avg-row { display: flex; align-items: center; gap: 10px; }
+.avg-legend { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.avg-legend .swatch { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.avg-legend b { font-family: var(--cond); font-size: 14px; color: var(--ink); font-weight: 700; }
+.avg-none { font-size: 11.5px; color: var(--muted); font-style: italic; }
+
+/* Marker sitting on the live slider track, behind the thumb. */
+.slider-stack { position: relative; flex: 1; min-width: 0; }
+.slider-stack input[type=range] { position: relative; z-index: 2; width: 100%; }
+.slider-marker {
+  position: absolute; top: 50%; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--muted); opacity: .55; transform: translate(-50%,-50%);
+  z-index: 1; pointer-events: none;
 }
