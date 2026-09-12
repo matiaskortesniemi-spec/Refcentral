@@ -91,11 +91,11 @@ export default function RefereesPage() {
                     <Link href={`/referees/${r.id}`}>{r.name}</Link>
                     {r.country && <span className="country"> · {r.country}</span>}
                   </td>
-                  <td className="num">{r.matches}</td>
-                  <td className="num strong">{r.career != null ? r.career.toFixed(2) : "—"}</td>
-                  <td className="num">{r.neutral != null ? r.neutral.toFixed(2) : "—"}</td>
-                  <td className="num">{r.partisan != null ? r.partisan.toFixed(2) : "—"}</td>
-                  <td className={`num ${r.divergence != null && r.divergence > 0.5 ? "gap" : ""}`}>
+                  <td className="num" data-label="Matches">{r.matches}</td>
+                  <td className="num strong" data-label="Career">{r.career != null ? r.career.toFixed(2) : "—"}</td>
+                  <td className="num" data-label="Neutrals">{r.neutral != null ? r.neutral.toFixed(2) : "—"}</td>
+                  <td className="num" data-label="Supporters">{r.partisan != null ? r.partisan.toFixed(2) : "—"}</td>
+                  <td data-label="Gap" className={`num ${r.divergence != null && r.divergence > 0.5 ? "gap" : ""}`}>
                     {r.divergence != null ? r.divergence.toFixed(2) : "—"}
                   </td>
                 </tr>

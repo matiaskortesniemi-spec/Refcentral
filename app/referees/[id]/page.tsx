@@ -224,14 +224,14 @@ export default function RefereePage({ params }: { params: Promise<{ id: string }
                           })}
                         </span>
                       </td>
-                      <td className="num">{m.decisionCount}</td>
-                      <td className="num strong">
+                      <td className="num" data-label="Decisions">{m.decisionCount}</td>
+                      <td className="num strong" data-label="Score">
                         {m.score != null ? m.score.toFixed(2) : "—"}
                       </td>
-                      <td className="num">
+                      <td className="num" data-label="Neutrals">
                         {m.neutralScore != null ? m.neutralScore.toFixed(2) : "—"}
                       </td>
-                      <td className="num">
+                      <td className="num" data-label="Supporters">
                         {m.partisanScore != null ? m.partisanScore.toFixed(2) : "—"}
                       </td>
                     </tr>

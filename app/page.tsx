@@ -164,7 +164,7 @@ export default function Home() {
 
       <main className="wrap">
         <div className="hero">
-          <div>
+          <div className="hero-copy">
             <h1>Rate the calls, not the result.</h1>
             <p className="lede">
               Every Premier League match is broken into the decisions that actually shaped it.
@@ -187,7 +187,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div>
+          <div className="hero-deck">
             {error && (
               <div className="state">
                 <h2>Couldn&apos;t load matches</h2>
@@ -423,29 +423,31 @@ function FixtureSlide({
               <span className={`tier ${tierClass(d.tier)}`}>{TIER_LABEL[d.tier] ?? d.tier}</span>
             </div>
 
-            {d.tierReasons.length > 0 && (
-              <div className="reasons">
-                <ul>
-                  {d.tierReasons.map((r, i) => (
-                    <li key={i}>{r}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <div className="dec-body">
+              {d.tierReasons.length > 0 && (
+                <div className="reasons">
+                  <ul>
+                    {d.tierReasons.map((r, i) => (
+                      <li key={i}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-            {d.varNote && <div className="varnote">VAR: {d.varNote}</div>}
+              {d.varNote && <div className="varnote">VAR: {d.varNote}</div>}
 
-            {userId ? (
-              <RatingSlider
-                userId={userId}
-                fixtureId={fixture.id}
-                decisionId={d.id}
-                initial={ratings[d.id]}
-                disabled={!canRate}
-              />
-            ) : (
-              <div className="unscored">Sign in to rate this decision.</div>
-            )}
+              {userId ? (
+                <RatingSlider
+                  userId={userId}
+                  fixtureId={fixture.id}
+                  decisionId={d.id}
+                  initial={ratings[d.id]}
+                  disabled={!canRate}
+                />
+              ) : (
+                <div className="unscored">Sign in to rate this decision.</div>
+              )}
+            </div>
           </div>
         ))}
       </div>
